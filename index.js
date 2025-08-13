@@ -59,14 +59,16 @@ const wxSDK = (options = {}) => {
     }
 
     // SDK 加载管理
-    const scriptId = 'Pd_share'
+    const scriptId = 'wxShare'
     let scriptTag = document.getElementById(scriptId)
     let loadTimeout
 
     const cleanup = () => {
       clearTimeout(loadTimeout)
-      scriptTag.onload = null
-      scriptTag.onerror = null
+      if (scriptTag) {
+        scriptTag.onload = null
+        scriptTag.onerror = null
+      }
     }
 
     const loadSDK = () => {

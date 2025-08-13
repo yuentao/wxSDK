@@ -1,5 +1,5 @@
 {
-  "name": "wxsdk",
+  "name": "wxsdk-pure",
   "version": "1.0.0",
   "description": "微信分享 SDK 封装",
   "main": "index.js",
@@ -10,6 +10,8 @@
     "type": "git",
     "url": "http://git.pandorastudio.cn/yuantao/wxSDK.git"
   },
+  "homepage": "http://git.pandorastudio.cn/yuantao/wxSDK.git",
+  "bugs": "http://git.pandorastudio.cn/yuantao/wxSDK.git",
   "keywords": [
     "wxSDK",
     "wx",
@@ -17,5 +19,7 @@
     "微信"
   ],
   "author": "袁涛",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {},
+  "devDependencies": {}
 }

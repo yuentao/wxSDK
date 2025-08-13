@@ -18,6 +18,7 @@
 
 ```bash
 npm install wxsdk-pure
+```
 
 ## 使用方法
 

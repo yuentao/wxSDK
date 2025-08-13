@@ -1,0 +1,21 @@
+{
+  "name": "wxsdk",
+  "version": "1.0.0",
+  "description": "微信分享 SDK 封装",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://git.pandorastudio.cn/yuantao/wxSDK.git"
+  },
+  "keywords": [
+    "wxSDK",
+    "wx",
+    "weixin",
+    "微信"
+  ],
+  "author": "袁涛",
+  "license": "ISC"
+}

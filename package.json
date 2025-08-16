@@ -1,6 +1,6 @@
 {
   "name": "wxsdk-pure",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "微信分享 SDK 封装",
   "main": "index.js",
   "scripts": {

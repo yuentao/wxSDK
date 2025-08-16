@@ -76,7 +76,7 @@ wxSDK({
 | `sdk` | string | `https://res.wx.qq.com/open/js/jweixin-1.6.0.js` | 否 | 微信 SDK URL |
 | `title` | string \| string[] | `['分享至朋友圈', '分享至好友']` | 否 | 分享标题 |
 | `desc` | string | `'万事皆虚，万物皆允'` | 否 | 分享描述 |
-| `shareIcon` | string \| string[] | 网站图标 | 否 | 分享图标 URL |
+| `shareIcon` | string \| string[] | 网站图标 | 否 | 分享图标 URL（如果没有使用该属性将自动抓取页面头部类型为icon的资源作为分享图） |
 | `shareLinks` | string \| string[] | 当前页面 URL | 否 | 分享链接 |
 | `debug` | boolean | `false` | 否 | 启用调试模式 |
 | `jsApiList` | string[] | `[]` | 否 | 微信 JS API 列表 |

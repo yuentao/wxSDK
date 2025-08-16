@@ -6,7 +6,8 @@
 const wxSDK = (options = {}) => {
   return new Promise((resolve, reject) => {
     // 环境检测
-    const w = typeof window !== 'undefined' ? window : self
+    const globalThis = typeof global !== 'undefined' ? global : self
+    const w = typeof window !== 'undefined' ? window : globalThis
     if (!w.document) {
       return reject(new Error('wxSDK只能在浏览器环境下使用'))
     }
@@ -30,7 +31,7 @@ const wxSDK = (options = {}) => {
       },
     }
 
-    // 合并配置（深度合并回调函数）
+    // 深度合并配置
     const config = {
       ...defaultConfig,
       ...options,
@@ -44,70 +45,110 @@ const wxSDK = (options = {}) => {
 
     // 参数校验
     if (!apiUrl) {
-      return reject(new Error('apiUrl is required'))
+      return reject(new Error('apiUrl为必填参数'))
     }
 
-    // 处理分享图标（使用 let 声明）
+    // 处理分享图标
     let { shareIcon } = config
     try {
-      const favicon = document.querySelector('link[rel="shortcut icon"], link[rel="icon"]')
+      const favicon = document.querySelector('link[rel*="icon"]')
       if (favicon && favicon.href) {
         shareIcon = favicon.href
       }
     } catch (e) {
-      console.warn('Favicon detection failed:', e)
+      console.warn('网站图标检测失败:', e)
     }
 
-    // SDK 加载管理
-    const scriptId = 'wxShare'
-    let scriptTag = document.getElementById(scriptId)
-    let loadTimeout
+    // 常量定义
+    const SCRIPT_ID = 'wxShareSDK'
+    const BASE_API_LIST = ['updateTimelineShareData', 'updateAppMessageShareData']
+    const DEFAULT_OPEN_TAGS = ['wx-open-launch-app']
+
+    // 清理资源
+    let scriptTag = document.getElementById(SCRIPT_ID)
+    let timeoutId
 
     const cleanup = () => {
-      clearTimeout(loadTimeout)
+      clearTimeout(timeoutId)
       if (scriptTag) {
         scriptTag.onload = null
         scriptTag.onerror = null
       }
     }
 
+    // 加载微信SDK
     const loadSDK = () => {
       cleanup()
 
       scriptTag = document.createElement('script')
-      scriptTag.id = scriptId
+      scriptTag.id = SCRIPT_ID
       scriptTag.src = sdk
       scriptTag.async = true
       scriptTag.defer = true
 
-      // 超时处理
-      loadTimeout = setTimeout(() => {
-        cleanup()
-        document.head.removeChild(scriptTag)
-        reject(new Error(`微信JSSDK加载超时 ${timeout}ms`))
-      }, timeout)
+      return new Promise((loadResolve, loadReject) => {
+        // 加载超时处理
+        timeoutId = setTimeout(() => {
+          cleanup()
+          document.head.removeChild(scriptTag)
+          loadReject(new Error(`微信JSSDK加载超时 (${timeout}ms)`))
+        }, timeout)
 
-      scriptTag.onload = () => {
-        cleanup()
-        initWeChat()
-      }
+        scriptTag.onload = () => {
+          cleanup()
+          loadResolve()
+        }
 
-      scriptTag.onerror = err => {
-        cleanup()
-        document.head.removeChild(scriptTag)
-        reject(new Error('微信JSSDK加载错误'))
-      }
+        scriptTag.onerror = err => {
+          cleanup()
+          document.head.removeChild(scriptTag)
+          loadReject(new Error('微信JSSDK加载失败'))
+        }
 
-      document.head.appendChild(scriptTag)
+        document.head.appendChild(scriptTag)
+      })
     }
 
-    // 微信初始化
-    const initWeChat = () => {
-      if (!w.wx) {
-        return reject(new Error('微信JSSDK加载不正确'))
+    // 获取微信签名
+    const fetchSignature = async () => {
+      const controller = new AbortController()
+      const fetchTimeout = setTimeout(() => controller.abort(), timeout)
+
+      try {
+        const response = await fetch(`${apiUrl}${encodeURIComponent(w.location.href.split('#')[0])}`, {
+          signal: controller.signal,
+        })
+
+        clearTimeout(fetchTimeout)
+
+        if (!response.ok) {
+          throw new Error(`网络请求失败 (${response.status})`)
+        }
+
+        const res = await response.json()
+        const { appId, timestamp, nonceStr, signature } = res || {}
+
+        if (!appId || !timestamp || !nonceStr || !signature) {
+          throw new Error('接口响应格式错误')
+        }
+
+        return { appId, timestamp, nonceStr, signature }
+      } catch (err) {
+        clearTimeout(fetchTimeout)
+        throw new Error(`签名接口请求错误: ${err.message}`)
+      }
+    }
+
+    // 配置微信分享
+    const configureWeChat = async () => {
+      if (!w.wx || typeof w.wx.config !== 'function') {
+        throw new Error('微信JSSDK未正确加载')
       }
 
-      // 参数处理
+      // 获取签名
+      const signatureData = await fetchSignature()
+
+      // 准备分享配置
       const timelineConfig = {
         title: Array.isArray(title) ? title[0] : title,
         link: Array.isArray(shareLinks) ? shareLinks[0] : shareLinks.split('#')[0],
@@ -121,119 +162,105 @@ const wxSDK = (options = {}) => {
         desc,
       }
 
-      // API 列表处理
-      const baseApiList = ['updateTimelineShareData', 'updateAppMessageShareData']
-      const fullApiList = [...new Set([...baseApiList, ...jsApiList])]
-      const fullOpenTagList = ['wx-open-launch-app', ...openTagList]
+      // 合并API列表
+      const fullApiList = [...new Set([...BASE_API_LIST, ...jsApiList])]
+      const fullOpenTagList = [...new Set([...DEFAULT_OPEN_TAGS, ...openTagList])]
 
-      // 获取签名
-      fetch(`${apiUrl}${w.location.href.split('#')[0]}`)
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`网络请求失败 (${response.status})`)
-          }
-          return response.json()
-        })
-        .then(res => {
-          const { appId, timestamp, nonceStr, signature } = res || {}
-          if (!appId || !timestamp || !nonceStr || !signature) {
-            throw new Error('接口响应格式错误')
-          }
+      // 初始化微信配置
+      w.wx.config({
+        debug,
+        ...signatureData,
+        jsApiList: fullApiList,
+        openTagList: fullOpenTagList,
+      })
 
-          // 微信配置
-          w.wx.config({
-            debug,
-            appId,
-            timestamp,
-            nonceStr,
-            signature,
-            jsApiList: fullApiList,
-            openTagList: fullOpenTagList,
-          })
+      // 返回封装后的wx对象
+      return new Promise((wxResolve, wxReject) => {
+        w.wx.error(wxReject)
 
-          w.wx.error(err => {
-            callback.error?.(err)
-            reject(err)
-          })
+        w.wx.ready(() => {
+          const shareOperations = []
 
-          w.wx.ready(() => {
-            try {
-              const shareOperations = []
-
-              // 朋友圈分享
-              if (w.wx.updateTimelineShareData) {
-                shareOperations.push(
-                  new Promise(shareResolve => {
-                    w.wx.updateTimelineShareData({
-                      ...timelineConfig,
-                      success: () => {
-                        callback.success?.('timeline')
-                        shareResolve()
-                      },
-                      fail: err => {
-                        callback.error?.(err)
-                        shareResolve() // 不阻断流程
-                      },
-                    })
-                  })
-                )
-              }
-
-              // 好友分享
-              if (w.wx.updateAppMessageShareData) {
-                shareOperations.push(
-                  new Promise(shareResolve => {
-                    w.wx.updateAppMessageShareData({
-                      ...messageConfig,
-                      success: () => {
-                        callback.success?.('message')
-                        shareResolve()
-                      },
-                      fail: err => {
-                        callback.error?.(err)
-                        shareResolve() // 不阻断流程
-                      },
-                    })
-                  })
-                )
-              }
-
-              // 等待所有分享配置完成
-              Promise.all(shareOperations)
-                .then(() => {
-                  callback.ready?.()
-                  resolve(w.wx)
+          // 配置朋友圈分享
+          if (w.wx.updateTimelineShareData) {
+            shareOperations.push(
+              new Promise(shareResolve => {
+                w.wx.updateTimelineShareData({
+                  ...timelineConfig,
+                  success: () => {
+                    callback.success?.('timeline')
+                    shareResolve()
+                  },
+                  fail: err => {
+                    callback.error?.(err)
+                    shareResolve() // 不阻断流程
+                  },
                 })
-                .catch(e => {
-                  console.error('分享设置失败:', e)
-                  callback.ready?.()
-                  resolve(w.wx) // 仍返回wx对象
+              })
+            )
+          }
+
+          // 配置好友分享
+          if (w.wx.updateAppMessageShareData) {
+            shareOperations.push(
+              new Promise(shareResolve => {
+                w.wx.updateAppMessageShareData({
+                  ...messageConfig,
+                  success: () => {
+                    callback.success?.('message')
+                    shareResolve()
+                  },
+                  fail: err => {
+                    callback.error?.(err)
+                    shareResolve() // 不阻断流程
+                  },
                 })
-            } catch (e) {
-              reject(e)
-            }
-          })
+              })
+            )
+          }
+
+          // 等待所有分享配置完成
+          Promise.all(shareOperations)
+            .then(() => {
+              callback.ready?.()
+              wxResolve(w.wx)
+            })
+            .catch(e => {
+              console.error('分享设置部分失败:', e)
+              callback.ready?.()
+              wxResolve(w.wx) // 仍返回wx对象
+            })
         })
-        .catch(err => {
-          reject(new Error(`签名接口请求错误: ${err.message}`))
-        })
+      })
     }
 
-    // 加载SDK
-    if (typeof w.wx === 'object' && w.wx.config) {
-      // 已加载SDK
-      initWeChat()
-    } else if (scriptTag) {
-      // 正在加载中
-      scriptTag.onload = initWeChat
-      scriptTag.onerror = err => {
-        cleanup()
-        reject(new Error('微信JSSDK加载失败'))
+    // 主执行流程
+    const initialize = async () => {
+      try {
+        // 加载SDK（如果需要）
+        if (!w.wx || typeof w.wx.config !== 'function') {
+          if (scriptTag && scriptTag.parentNode) {
+            // 等待正在加载的SDK
+            await new Promise((resolve, reject) => {
+              scriptTag.onload = resolve
+              scriptTag.onerror = () => reject(new Error('SDK加载失败'))
+            })
+          } else {
+            await loadSDK()
+          }
+        }
+
+        // 配置微信功能
+        const wxInstance = await configureWeChat()
+        resolve(wxInstance)
+      } catch (err) {
+        callback.error?.(err)
+        reject(err)
       }
-    } else {
-      // 全新加载
-      loadSDK()
     }
+
+    // 启动初始化
+    initialize()
   })
 }
 

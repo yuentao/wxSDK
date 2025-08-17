@@ -1,6 +1,6 @@
 {
   "name": "wxsdk-pure",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "微信分享 SDK 封装",
   "type": "module",
   "main": "dist/wxsdk-pure.js",
@@ -19,7 +19,11 @@
     "wxSDK",
     "wx",
     "weixin",
-    "微信"
+    "微信",
+    "wechat",
+    "wechtasdk",
+    "jssdk",
+    "wechatjs"
   ],
   "author": "袁涛",
   "license": "ISC",

@@ -19,14 +19,18 @@
 ```bash
 npm install wxsdk-pure
 ```
+```javascript
+import wxSDK from 'wxsdk-pure';
+```
+或者浏览器直接引用
+```html
+<script src='./dist/wxsdk-pure.js'></script>
+```
 
 ## 使用方法
 
 ### 基本使用
-
 ```javascript
-import wxSDK from 'wxsdk-pure';
-
 wxSDK({
   apiUrl: 'https://your-api.com/wx-signature',
   title: ['朋友圈标题', '好友分享标题'],
@@ -71,7 +75,7 @@ wxSDK({
 ## 配置选项
 
 | 参数 | 类型 | 默认值 | 必填 | 描述 |
-|------|------|---------|------|------|
+|-----|-----|-----|----|--------|
 | `apiUrl` | string | - | 是 | 后端签名接口地址 |
 | `sdk` | string | `https://res.wx.qq.com/open/js/jweixin-1.6.0.js` | 否 | 微信 SDK URL |
 | `title` | string \| string[] | `['分享至朋友圈', '分享至好友']` | 否 | 分享标题 |
